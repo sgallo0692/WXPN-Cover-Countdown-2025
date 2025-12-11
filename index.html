@@ -205,6 +205,9 @@
 
       .artist-cell {
         white-space: nowrap;
+        max-width: 240px;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .badge {
@@ -231,6 +234,27 @@
         border: 1px solid #1f2937;
         font-size: 0.7rem;
         white-space: nowrap;
+        text-decoration: none;
+      }
+
+      .pill-spotify {
+        background: #022c22;
+        border-color: #16a34a;
+        color: #bbf7d0;
+      }
+
+      .pill-spotify:hover {
+        background: #064e3b;
+      }
+
+      .pill-apple {
+        background: #450a0a;
+        border-color: #dc2626;
+        color: #fecaca;
+      }
+
+      .pill-apple:hover {
+        background: #7f1d1d;
       }
 
       .muted {
@@ -247,6 +271,21 @@
 
       .error span {
         color: #f97373;
+      }
+
+      .btn {
+        padding: 0.45rem 0.9rem;
+        border-radius: 999px;
+        border: 1px solid #4b5563;
+        background: #111827;
+        color: #e5e7eb;
+        font-size: 0.85rem;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .btn:hover {
+        background: #1f2937;
       }
 
       @media (max-width: 768px) {
@@ -317,6 +356,16 @@
         return `https://music.apple.com/us/search?term=${encodeURIComponent(
           query
         )}`;
+      }
+
+      // Simple CSV escaping
+      function csvValue(value) {
+        if (value == null) return "";
+        const str = String(value).replace(/"/g, '""');
+        if (/[",\n]/.test(str)) {
+          return `"${str}"`;
+        }
+        return str;
       }
 
       function App() {
@@ -469,13 +518,68 @@
           return sortDirection === "asc" ? "↑" : "↓";
         };
 
+        const handleExport = () => {
+          if (!filteredRows.length) {
+            alert("No rows to export for current filters.");
+            return;
+          }
+
+          const headers = [
+            "rank",
+            "song",
+            "artist",
+            "album",
+            "originalArtist",
+            "originalYear",
+            "releaseYear",
+            "genres",
+            "spotifyUrl",
+            "appleMusicUrl",
+          ];
+
+          const lines = [headers.join(",")];
+
+          filteredRows.forEach((row) => {
+            const spotifyUrl = buildSpotifyUrl(row.song, row.artist) || "";
+            const appleUrl = buildAppleMusicUrl(row.song, row.artist) || "";
+            const genres = (row.genreList || []).join("; ");
+
+            const values = [
+              row.rank,
+              row.song,
+              row.artist,
+              row.album,
+              row.originalArtist,
+              row.originalYear,
+              row.releaseYear,
+              genres,
+              spotifyUrl,
+              appleUrl,
+            ].map(csvValue);
+
+            lines.push(values.join(","));
+          });
+
+          const blob = new Blob([lines.join("\n")], {
+            type: "text/csv;charset=utf-8;",
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "xpn-countdown-export.csv";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        };
+
         return (
           <div className="app">
             <header>
               <h1>XPN 2025 Countdown – Cover Songs Explorer</h1>
               <p>
                 Live data from <span className="chip">cd2025.json</span> – search,
-                filter, and explore cover songs.
+                filter, explore, and export.
               </p>
             </header>
 
@@ -522,6 +626,10 @@
                   ))}
                 </select>
               </div>
+
+              <button type="button" className="btn" onClick={handleExport}>
+                Export CSV
+              </button>
 
               <div className="summary">
                 {loading && <span className="muted">Loading songs…</span>}
@@ -595,74 +703,88 @@
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredRows.map((row) => (
-                        <tr key={row.id}>
-                          <td className="rank-cell">{row.rank}</td>
-                          <td>
-                            <div className="album-cell">
-                              {row.albumArt ? (
-                                <img
-                                  src={row.albumArt}
-                                  alt={row.album || "Album art"}
-                                  className="album-art"
-                                  loading="lazy"
-                                />
-                              ) : (
-                                <div className="album-placeholder">No art</div>
-                              )}
-                              <div>
-                                <div className="song-title">{row.song}</div>
-                                <div className="song-meta">
-                                  {row.album || (
-                                    <span className="muted">—</span>
-                                  )}
+                      {filteredRows.map((row) => {
+                        const truncatedArtist =
+                          row.artist && row.artist.length > 80
+                            ? row.artist.slice(0, 77) + "..."
+                            : row.artist;
+
+                        const spotifyUrl = buildSpotifyUrl(
+                          row.song,
+                          row.artist
+                        );
+                        const appleUrl = buildAppleMusicUrl(
+                          row.song,
+                          row.artist
+                        );
+
+                        return (
+                          <tr key={row.id}>
+                            <td className="rank-cell">{row.rank}</td>
+                            <td>
+                              <div className="album-cell">
+                                {row.albumArt ? (
+                                  <img
+                                    src={row.albumArt}
+                                    alt={row.album || "Album art"}
+                                    className="album-art"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <div className="album-placeholder">
+                                    No art
+                                  </div>
+                                )}
+                                <div>
+                                  <div className="song-title">{row.song}</div>
+                                  <div className="song-meta">
+                                    {row.album || (
+                                      <span className="muted">—</span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </td>
-                          <td className="artist-cell">{row.artist}</td>
-                          <td>{row.originalArtist}</td>
-                          <td>
-                            {row.originalYear ? (
-                              <span className="badge">{row.originalYear}</span>
-                            ) : (
-                              <span className="muted">—</span>
-                            )}
-                          </td>
-                          <td>
-                            {row.releaseYear ? (
-                              <span className="badge">{row.releaseYear}</span>
-                            ) : (
-                              <span className="muted">—</span>
-                            )}
-                          </td>
-                          <td>
-                            {row.genreList && row.genreList.length > 0 ? (
-                              <div className="genre-list">
-                                {row.genreList.map((g) => (
-                                  <span key={g} className="pill">
-                                    {g}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="muted">No tags</span>
-                            )}
-                          </td>
-                          <td>
-                            {(() => {
-                              const spotifyUrl = buildSpotifyUrl(
-                                row.song,
-                                row.artist
-                              );
-                              const appleUrl = buildAppleMusicUrl(
-                                row.song,
-                                row.artist
-                              );
-                              if (!spotifyUrl && !appleUrl) {
-                                return <span className="muted">No link</span>;
-                              }
-                              return (
+                            </td>
+                            <td
+                              className="artist-cell"
+                              title={row.artist || ""}
+                            >
+                              {truncatedArtist}
+                            </td>
+                            <td>{row.originalArtist}</td>
+                            <td>
+                              {row.originalYear ? (
+                                <span className="badge">
+                                  {row.originalYear}
+                                </span>
+                              ) : (
+                                <span className="muted">—</span>
+                              )}
+                            </td>
+                            <td>
+                              {row.releaseYear ? (
+                                <span className="badge">
+                                  {row.releaseYear}
+                                </span>
+                              ) : (
+                                <span className="muted">—</span>
+                              )}
+                            </td>
+                            <td>
+                              {row.genreList && row.genreList.length > 0 ? (
+                                <div className="genre-list">
+                                  {row.genreList.map((g) => (
+                                    <span key={g} className="pill">
+                                      {g}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="muted">No tags</span>
+                              )}
+                            </td>
+                            <td>
+                              {spotifyUrl || appleUrl ? (
                                 <div
                                   style={{
                                     display: "flex",
@@ -675,7 +797,7 @@
                                       href={spotifyUrl}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="pill"
+                                      className="pill pill-spotify"
                                     >
                                       🎧 Spotify
                                     </a>
@@ -685,17 +807,19 @@
                                       href={appleUrl}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="pill"
+                                      className="pill pill-apple"
                                     >
                                        Music
                                     </a>
                                   )}
                                 </div>
-                              );
-                            })()}
-                          </td>
-                        </tr>
-                      ))}
+                              ) : (
+                                <span className="muted">No link</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
