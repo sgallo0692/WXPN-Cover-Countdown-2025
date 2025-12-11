@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>XPN Countdown 2025 – Cover Songs Explorer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        color: #111827;
+        background: #0f172a;
+      }
+
+      body {
+        margin: 0;
+        background: radial-gradient(circle at top left, #1f2937, #020617);
+        color: #e5e7eb;
+      }
+
+      .app {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 1.5rem;
+      }
+
+      header {
+        margin-bottom: 1.25rem;
+      }
+
+      header h1 {
+        margin: 0 0 0.25rem;
+        font-size: 1.6rem;
+        color: #f9fafb;
+      }
+
+      header p {
+        margin: 0;
+        color: #9ca3af;
+        font-size: 0.95rem;
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+        margin-bottom: 1rem;
+      }
+
+      .control-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        min-width: 180px;
+      }
+
+      label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #9ca3af;
+      }
+
+      input[type="text"],
+      select {
+        padding: 0.45rem 0.6rem;
+        border-radius: 0.5rem;
+        border: 1px solid #374151;
+        background: #020617;
+        color: #e5e7eb;
+        font-size: 0.9rem;
+        outline: none;
+      }
+
+      input[type="text"]:focus,
+      select:focus {
+        border-color: #60a5fa;
+        box-shadow: 0 0 0 1px #60a5fa33;
+      }
+
+      .summary {
+        margin-left: auto;
+        font-size: 0.85rem;
+        color: #9ca3af;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid #4b5563;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #9ca3af;
+      }
+
+      .table-wrapper {
+        background: #020617;
+        border-radius: 0.75rem;
+        border: 1px solid #1f2937;
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+        overflow: hidden;
+      }
+
+      .table-scroll {
+        max-height: 70vh;
+        overflow: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+      }
+
+      thead {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+
+      th,
+      td {
+        padding: 0.5rem 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid #111827;
+      }
+
+      thead tr {
+        background: linear-gradient(to right, #111827, #020617);
+      }
+
+      th {
+        font-weight: 600;
+        color: #9ca3af;
+        white-space: nowrap;
+        cursor: pointer;
+        position: relative;
+        user-select: none;
+      }
+
+      th .sort-indicator {
+        margin-left: 0.25rem;
+        font-size: 0.7rem;
+        opacity: 0.7;
+      }
+
+      tbody tr:nth-child(even) {
+        background: #020617;
+      }
+
+      tbody tr:nth-child(odd) {
+        background: #020617;
+      }
+
+      tbody tr:hover {
+        background: #111827;
+      }
+
+      .rank-cell {
+        font-variant-numeric: tabular-nums;
+        color: #e5e7eb;
+        font-weight: 600;
+      }
+
+      .album-cell {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+      }
+
+      .album-art {
+        width: 44px;
+        height: 44px;
+        border-radius: 0.5rem;
+        object-fit: cover;
+        background: #111827;
+        flex-shrink: 0;
+      }
+
+      .album-placeholder {
+        width: 44px;
+        height: 44px;
+        border-radius: 0.5rem;
+        background: #111827;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.6rem;
+        color: #4b5563;
+        border: 1px dashed #374151;
+        flex-shrink: 0;
+      }
+
+      .song-title {
+        font-weight: 600;
+        color: #f9fafb;
+        margin-bottom: 0.1rem;
+      }
+
+      .song-meta {
+        font-size: 0.75rem;
+        color: #9ca3af;
+      }
+
+      .artist-cell {
+        white-space: nowrap;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.1rem 0.4rem;
+        font-size: 0.7rem;
+        background: #111827;
+        color: #9ca3af;
+        border: 1px solid #1f2937;
+      }
+
+      .genre-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+      }
+
+      .pill {
+        padding: 0.1rem 0.45rem;
+        border-radius: 999px;
+        background: #0b1120;
+        border: 1px solid #1f2937;
+        font-size: 0.7rem;
+        white-space: nowrap;
+      }
+
+      .muted {
+        color: #6b7280;
+        font-size: 0.8rem;
+      }
+
+      .error,
+      .loading {
+        padding: 1rem;
+        text-align: center;
+        color: #f9fafb;
+      }
+
+      .error span {
+        color: #f97373;
+      }
+
+      @media (max-width: 768px) {
+        .controls {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .summary {
+          margin-left: 0;
+        }
+
+        th,
+        td {
+          padding: 0.4rem 0.5rem;
+        }
+
+        .song-title {
+          font-size: 0.8rem;
+        }
+
+        .song-meta {
+          font-size: 0.7rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <!-- React + ReactDOM -->
+    <script
+      crossorigin
+      src="https://unpkg.com/react@18/umd/react.development.js"
+    ></script>
+    <script
+      crossorigin
+      src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"
+    ></script>
+    <!-- Babel for JSX in-browser (fine for a prototype) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel">
+      const { useState, useEffect, useMemo } = React;
+
+      const DATA_URL =
+        "https://origin.xpn.org/countdown/2025/json/cd2025.json";
+
+      // Very small helper to parse the PHP-serialized genre string into an array of strings
+      function parseGenre(raw) {
+        if (!raw || typeof raw !== "string") return [];
+        // Match all segments like s:12:"classic rock"
+        const matches = [...raw.matchAll(/"([^"]+)"/g)];
+        return matches.map((m) => m[1]);
+      }
+
+      function App() {
+        const [rows, setRows] = useState([]);
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState(null);
+
+        const [search, setSearch] = useState("");
+        const [decadeFilter, setDecadeFilter] = useState("all");
+        const [sortField, setSortField] = useState("rank");
+        const [sortDirection, setSortDirection] = useState("asc");
+
+        useEffect(() => {
+          async function load() {
+            try {
+              setLoading(true);
+              const res = await fetch(DATA_URL);
+              if (!res.ok) {
+                throw new Error("Request failed: " + res.status);
+              }
+              const json = await res.json();
+              const normalized = json.map((item) => {
+                const genreList = parseGenre(item.genre);
+                const originalYear = parseInt(item.originalYear, 10) || null;
+                const releaseYear = parseInt(item.releaseDate, 10) || null;
+
+                return {
+                  ...item,
+                  id: String(item.id),
+                  artist: (item.artist || "").trim(),
+                  song: (item.song || "").trim(),
+                  album: (item.album || "").trim(),
+                  originalArtist: (item.originalArtist || "").trim(),
+                  rank: Number(item.rank),
+                  originalYear,
+                  releaseYear,
+                  genreList,
+                };
+              });
+              setRows(normalized);
+              setError(null);
+            } catch (err) {
+              console.error(err);
+              setError(err.message || "Unknown error");
+            } finally {
+              setLoading(false);
+            }
+          }
+
+          load();
+        }, []);
+
+        // All decades present in data (based on originalYear → releaseYear fallback)
+        const decadeOptions = useMemo(() => {
+          const set = new Set();
+          rows.forEach((r) => {
+            const y = r.originalYear || r.releaseYear;
+            if (!y) return;
+            const decade = Math.floor(y / 10) * 10;
+            set.add(decade);
+          });
+          return Array.from(set).sort((a, b) => a - b);
+        }, [rows]);
+
+        const filteredRows = useMemo(() => {
+          let result = [...rows];
+
+          if (search.trim()) {
+            const q = search.toLowerCase();
+            result = result.filter((r) => {
+              const haystack =
+                (r.artist + " " + r.song + " " + r.album + " " + r.originalArtist)
+                  .toLowerCase();
+              const genres = (r.genreList || []).join(" ").toLowerCase();
+              return (
+                haystack.includes(q) ||
+                genres.includes(q) ||
+                String(r.rank).includes(q)
+              );
+            });
+          }
+
+          if (decadeFilter !== "all") {
+            const wanted = parseInt(decadeFilter, 10);
+            result = result.filter((r) => {
+              const y = r.originalYear || r.releaseYear;
+              if (!y) return false;
+              const d = Math.floor(y / 10) * 10;
+              return d === wanted;
+            });
+          }
+
+          result.sort((a, b) => {
+            let av = a[sortField];
+            let bv = b[sortField];
+
+            if (av == null && bv == null) return 0;
+            if (av == null) return 1;
+            if (bv == null) return -1;
+
+            if (typeof av === "string") {
+              av = av.toLowerCase();
+              bv = bv.toLowerCase();
+            }
+
+            if (av < bv) return sortDirection === "asc" ? -1 : 1;
+            if (av > bv) return sortDirection === "asc" ? 1 : -1;
+            return 0;
+          });
+
+          return result;
+        }, [rows, search, decadeFilter, sortField, sortDirection]);
+
+        const handleSort = (field) => {
+          if (sortField === field) {
+            setSortDirection((dir) => (dir === "asc" ? "desc" : "asc"));
+          } else {
+            setSortField(field);
+            setSortDirection("asc");
+          }
+        };
+
+        const sortArrow = (field) => {
+          if (sortField !== field) return "↕";
+          return sortDirection === "asc" ? "↑" : "↓";
+        };
+
+        return (
+          <div className="app">
+            <header>
+              <h1>XPN 2025 Countdown – Cover Songs Explorer</h1>
+              <p>
+                Live data from {""}
+                <span className="chip">cd2025.json</span> – search, filter, and
+                explore cover songs.
+              </p>
+            </header>
+
+            <section className="controls">
+              <div className="control-group">
+                <label htmlFor="search">Search</label>
+                <input
+                  id="search"
+                  type="text"
+                  placeholder="Song, artist, album, original artist, genre…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+
+              <div className="control-group">
+                <label htmlFor="decade">Original decade</label>
+                <select
+                  id="decade"
+                  value={decadeFilter}
+                  onChange={(e) => setDecadeFilter(e.target.value)}
+                >
+                  <option value="all">All decades</option>
+                  {decadeOptions.map((d) => (
+                    <option key={d} value={d}>
+                      {d}s
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="summary">
+                {loading && <span className="muted">Loading songs…</span>}
+                {!loading && !error && (
+                  <span className="muted">
+                    Showing {filteredRows.length.toLocaleString()} of{" "}
+                    {rows.length.toLocaleString()} songs
+                  </span>
+                )}
+              </div>
+            </section>
+
+            <section className="table-wrapper">
+              {loading && (
+                <div className="loading">
+                  <span>Loading countdown data…</span>
+                </div>
+              )}
+              {error && (
+                <div className="error">
+                  <span>Error:</span> {error}
+                  <div className="muted">
+                    If this persists, the endpoint may be blocking browser
+                    requests (CORS).
+                  </div>
+                </div>
+              )}
+              {!loading && !error && (
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th onClick={() => handleSort("rank")}>
+                          Rank
+                          <span className="sort-indicator">
+                            {sortArrow("rank")}
+                          </span>
+                        </th>
+                        <th onClick={() => handleSort("song")}>
+                          Song
+                          <span className="sort-indicator">
+                            {sortArrow("song")}
+                          </span>
+                        </th>
+                        <th onClick={() => handleSort("artist")}>
+                          Artist
+                          <span className="sort-indicator">
+                            {sortArrow("artist")}
+                          </span>
+                        </th>
+                        <th onClick={() => handleSort("originalArtist")}>
+                          Original Artist
+                          <span className="sort-indicator">
+                            {sortArrow("originalArtist")}
+                          </span>
+                        </th>
+                        <th onClick={() => handleSort("originalYear")}>
+                          Orig. Year
+                          <span className="sort-indicator">
+                            {sortArrow("originalYear")}
+                          </span>
+                        </th>
+                        <th onClick={() => handleSort("releaseYear")}>
+                          Release
+                          <span className="sort-indicator">
+                            {sortArrow("releaseYear")}
+                          </span>
+                        </th>
+                        <th>Genres</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredRows.map((row) => (
+                        <tr key={row.id}>
+                          <td className="rank-cell">{row.rank}</td>
+                          <td>
+                            <div className="album-cell">
+                              {row.albumArt ? (
+                                <img
+                                  src={row.albumArt}
+                                  alt={row.album || "Album art"}
+                                  className="album-art"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="album-placeholder">
+                                  No art
+                                </div>
+                              )}
+                              <div>
+                                <div className="song-title">{row.song}</div>
+                                <div className="song-meta">
+                                  {row.album || <span className="muted">—</span>}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="artist-cell">{row.artist}</td>
+                          <td>{row.originalArtist}</td>
+                          <td>
+                            {row.originalYear ? (
+                              <span className="badge">{row.originalYear}</span>
+                            ) : (
+                              <span className="muted">—</span>
+                            )}
+                          </td>
+                          <td>
+                            {row.releaseYear ? (
+                              <span className="badge">{row.releaseYear}</span>
+                            ) : (
+                              <span className="muted">—</span>
+                            )}
+                          </td>
+                          <td>
+                            {row.genreList && row.genreList.length > 0 ? (
+                              <div className="genre-list">
+                                {row.genreList.map((g) => (
+                                  <span key={g} className="pill">
+                                    {g}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="muted">No tags</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<App />);
+    </script>
+  </body>
+</html>
