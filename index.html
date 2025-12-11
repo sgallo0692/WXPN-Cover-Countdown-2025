@@ -148,10 +148,7 @@
         opacity: 0.7;
       }
 
-      tbody tr:nth-child(even) {
-        background: #020617;
-      }
-
+      tbody tr:nth-child(even),
       tbody tr:nth-child(odd) {
         background: #020617;
       }
@@ -289,7 +286,7 @@
       crossorigin
       src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"
     ></script>
-    <!-- Babel for JSX in-browser (fine for a prototype) -->
+    <!-- Babel for JSX in-browser -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <script type="text/babel">
@@ -298,12 +295,28 @@
       const DATA_URL =
         "https://origin.xpn.org/countdown/2025/json/cd2025.json";
 
-      // Very small helper to parse the PHP-serialized genre string into an array of strings
+      // Parse PHP-serialized genre strings into an array of strings
       function parseGenre(raw) {
         if (!raw || typeof raw !== "string") return [];
-        // Match all segments like s:12:"classic rock"
         const matches = [...raw.matchAll(/"([^"]+)"/g)];
         return matches.map((m) => m[1]);
+      }
+
+      function buildSpotifyUrl(song, artist) {
+        if (!song && !artist) return null;
+        const query = `${song || ""} ${artist || ""}`.trim();
+        if (!query) return null;
+        return `https://open.spotify.com/search/${encodeURIComponent(query)}`;
+      }
+
+      function buildAppleMusicUrl(song, artist) {
+        if (!song && !artist) return null;
+        const query = `${song || ""} ${artist || ""}`.trim();
+        if (!query) return null;
+        // Change "us" to another storefront code if desired
+        return `https://music.apple.com/us/search?term=${encodeURIComponent(
+          query
+        )}`;
       }
 
       function App() {
@@ -313,6 +326,7 @@
 
         const [search, setSearch] = useState("");
         const [decadeFilter, setDecadeFilter] = useState("all");
+        const [genreFilter, setGenreFilter] = useState("all");
         const [sortField, setSortField] = useState("rank");
         const [sortDirection, setSortDirection] = useState("asc");
 
@@ -356,7 +370,6 @@
           load();
         }, []);
 
-        // All decades present in data (based on originalYear → releaseYear fallback)
         const decadeOptions = useMemo(() => {
           const set = new Set();
           rows.forEach((r) => {
@@ -368,15 +381,31 @@
           return Array.from(set).sort((a, b) => a - b);
         }, [rows]);
 
+        const genreOptions = useMemo(() => {
+          const set = new Set();
+          rows.forEach((r) => {
+            (r.genreList || []).forEach((g) => {
+              if (g && g.trim()) set.add(g.trim());
+            });
+          });
+          return Array.from(set).sort((a, b) => a.localeCompare(b));
+        }, [rows]);
+
         const filteredRows = useMemo(() => {
           let result = [...rows];
 
           if (search.trim()) {
             const q = search.toLowerCase();
             result = result.filter((r) => {
-              const haystack =
-                (r.artist + " " + r.song + " " + r.album + " " + r.originalArtist)
-                  .toLowerCase();
+              const haystack = (
+                r.artist +
+                " " +
+                r.song +
+                " " +
+                r.album +
+                " " +
+                r.originalArtist
+              ).toLowerCase();
               const genres = (r.genreList || []).join(" ").toLowerCase();
               return (
                 haystack.includes(q) ||
@@ -394,6 +423,15 @@
               const d = Math.floor(y / 10) * 10;
               return d === wanted;
             });
+          }
+
+          if (genreFilter !== "all") {
+            const wanted = genreFilter.toLowerCase();
+            result = result.filter((r) =>
+              (r.genreList || []).some(
+                (g) => g.toLowerCase() === wanted
+              )
+            );
           }
 
           result.sort((a, b) => {
@@ -415,7 +453,7 @@
           });
 
           return result;
-        }, [rows, search, decadeFilter, sortField, sortDirection]);
+        }, [rows, search, decadeFilter, genreFilter, sortField, sortDirection]);
 
         const handleSort = (field) => {
           if (sortField === field) {
@@ -436,9 +474,8 @@
             <header>
               <h1>XPN 2025 Countdown – Cover Songs Explorer</h1>
               <p>
-                Live data from {""}
-                <span className="chip">cd2025.json</span> – search, filter, and
-                explore cover songs.
+                Live data from <span className="chip">cd2025.json</span> – search,
+                filter, and explore cover songs.
               </p>
             </header>
 
@@ -465,6 +502,22 @@
                   {decadeOptions.map((d) => (
                     <option key={d} value={d}>
                       {d}s
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="control-group">
+                <label htmlFor="genre">Genre</label>
+                <select
+                  id="genre"
+                  value={genreFilter}
+                  onChange={(e) => setGenreFilter(e.target.value)}
+                >
+                  <option value="all">All genres</option>
+                  {genreOptions.map((g) => (
+                    <option key={g} value={g}>
+                      {g}
                     </option>
                   ))}
                 </select>
@@ -538,6 +591,7 @@
                           </span>
                         </th>
                         <th>Genres</th>
+                        <th>Listen</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -554,14 +608,14 @@
                                   loading="lazy"
                                 />
                               ) : (
-                                <div className="album-placeholder">
-                                  No art
-                                </div>
+                                <div className="album-placeholder">No art</div>
                               )}
                               <div>
                                 <div className="song-title">{row.song}</div>
                                 <div className="song-meta">
-                                  {row.album || <span className="muted">—</span>}
+                                  {row.album || (
+                                    <span className="muted">—</span>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -594,6 +648,51 @@
                             ) : (
                               <span className="muted">No tags</span>
                             )}
+                          </td>
+                          <td>
+                            {(() => {
+                              const spotifyUrl = buildSpotifyUrl(
+                                row.song,
+                                row.artist
+                              );
+                              const appleUrl = buildAppleMusicUrl(
+                                row.song,
+                                row.artist
+                              );
+                              if (!spotifyUrl && !appleUrl) {
+                                return <span className="muted">No link</span>;
+                              }
+                              return (
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    gap: "0.35rem",
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  {spotifyUrl && (
+                                    <a
+                                      href={spotifyUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="pill"
+                                    >
+                                      🎧 Spotify
+                                    </a>
+                                  )}
+                                  {appleUrl && (
+                                    <a
+                                      href={appleUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="pill"
+                                    >
+                                       Music
+                                    </a>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </td>
                         </tr>
                       ))}
