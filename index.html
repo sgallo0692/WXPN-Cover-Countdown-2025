@@ -45,7 +45,7 @@
         flex-wrap: wrap;
         gap: 0.75rem;
         align-items: center;
-        margin-bottom: 1rem;
+        margin-bottom: 0.75rem;
       }
 
       .control-group {
@@ -95,6 +95,14 @@
         text-transform: uppercase;
         letter-spacing: 0.06em;
         color: #9ca3af;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+        align-items: center;
       }
 
       .table-wrapper {
@@ -288,10 +296,44 @@
         background: #1f2937;
       }
 
+      .embed-section {
+        margin-bottom: 1rem;
+      }
+
+      .embed-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #9ca3af;
+        margin-bottom: 0.25rem;
+      }
+
+      .embed-code {
+        width: 100%;
+        min-height: 70px;
+        background: #020617;
+        color: #9ca3af;
+        border-radius: 0.5rem;
+        border: 1px solid #374151;
+        font-size: 0.8rem;
+        padding: 0.5rem;
+        resize: vertical;
+      }
+
+      .last-updated {
+        font-size: 0.75rem;
+        color: #6b7280;
+      }
+
       @media (max-width: 768px) {
         .controls {
           flex-direction: column;
           align-items: stretch;
+        }
+
+        .actions {
+          flex-direction: column;
+          align-items: flex-start;
         }
 
         .summary {
@@ -334,25 +376,36 @@
       const DATA_URL =
         "https://origin.xpn.org/countdown/2025/json/cd2025.json";
 
+      // Remove control chars (including backspace-like junk) & trim
+      function cleanText(value) {
+        if (value == null) return "";
+        return String(value)
+          .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+          .trim();
+      }
+
       // Parse PHP-serialized genre strings into an array of strings
       function parseGenre(raw) {
         if (!raw || typeof raw !== "string") return [];
         const matches = [...raw.matchAll(/"([^"]+)"/g)];
-        return matches.map((m) => m[1]);
+        return matches.map((m) => cleanText(m[1])).filter(Boolean);
       }
 
       function buildSpotifyUrl(song, artist) {
-        if (!song && !artist) return null;
-        const query = `${song || ""} ${artist || ""}`.trim();
+        const s = cleanText(song);
+        const a = cleanText(artist);
+        if (!s && !a) return null;
+        const query = `${s || ""} ${a || ""}`.trim();
         if (!query) return null;
         return `https://open.spotify.com/search/${encodeURIComponent(query)}`;
       }
 
       function buildAppleMusicUrl(song, artist) {
-        if (!song && !artist) return null;
-        const query = `${song || ""} ${artist || ""}`.trim();
+        const s = cleanText(song);
+        const a = cleanText(artist);
+        if (!s && !a) return null;
+        const query = `${s || ""} ${a || ""}`.trim();
         if (!query) return null;
-        // Change "us" to another storefront code if desired
         return `https://music.apple.com/us/search?term=${encodeURIComponent(
           query
         )}`;
@@ -362,10 +415,22 @@
       function csvValue(value) {
         if (value == null) return "";
         const str = String(value).replace(/"/g, '""');
-        if (/[",\n]/.test(str)) {
+        if (/[",\n\r]/.test(str)) {
           return `"${str}"`;
         }
         return str;
+      }
+
+      // Read a query param with a default
+      function getQueryParam(name, defaultValue) {
+        if (typeof window === "undefined") return defaultValue;
+        try {
+          const url = new URL(window.location.href);
+          const v = url.searchParams.get(name);
+          return v !== null ? v : defaultValue;
+        } catch {
+          return defaultValue;
+        }
       }
 
       function App() {
@@ -373,52 +438,98 @@
         const [loading, setLoading] = useState(true);
         const [error, setError] = useState(null);
 
-        const [search, setSearch] = useState("");
-        const [decadeFilter, setDecadeFilter] = useState("all");
-        const [genreFilter, setGenreFilter] = useState("all");
-        const [sortField, setSortField] = useState("rank");
-        const [sortDirection, setSortDirection] = useState("asc");
+        const [search, setSearch] = useState(() => getQueryParam("q", ""));
+        const [decadeFilter, setDecadeFilter] = useState(() =>
+          getQueryParam("decade", "all")
+        );
+        const [genreFilter, setGenreFilter] = useState(() =>
+          getQueryParam("genre", "all")
+        );
+        const [sortField, setSortField] = useState(() =>
+          getQueryParam("sort", "rank")
+        );
+        const [sortDirection, setSortDirection] = useState(() =>
+          getQueryParam("dir", "asc")
+        );
 
+        const [viewUrl, setViewUrl] = useState(
+          typeof window !== "undefined" ? window.location.href : ""
+        );
+        const [lastUpdated, setLastUpdated] = useState(null);
+
+        // Load data and refresh every 30s
         useEffect(() => {
-          async function load() {
+          let cancelled = false;
+
+          async function loadData({ silent } = { silent: false }) {
             try {
-              setLoading(true);
-              const res = await fetch(DATA_URL);
+              if (!silent) setLoading(true);
+              const res = await fetch(DATA_URL, { cache: "no-store" });
               if (!res.ok) {
                 throw new Error("Request failed: " + res.status);
               }
-              const json = await res.json();
-              const normalized = json.map((item) => {
+
+              const text = await res.text();
+              let parsed;
+              try {
+                parsed = JSON.parse(text);
+              } catch (e) {
+                // Strip control chars and try again
+                const cleaned = text.replace(
+                  /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,
+                  ""
+                );
+                parsed = JSON.parse(cleaned);
+              }
+
+              const normalized = parsed.map((item) => {
                 const genreList = parseGenre(item.genre);
                 const originalYear = parseInt(item.originalYear, 10) || null;
                 const releaseYear = parseInt(item.releaseDate, 10) || null;
 
                 return {
                   ...item,
-                  id: String(item.id),
-                  artist: (item.artist || "").trim(),
-                  song: (item.song || "").trim(),
-                  album: (item.album || "").trim(),
-                  originalArtist: (item.originalArtist || "").trim(),
+                  id: cleanText(item.id),
+                  artist: cleanText(item.artist),
+                  song: cleanText(item.song),
+                  album: cleanText(item.album),
+                  originalArtist: cleanText(item.originalArtist),
+                  albumArt: cleanText(item.albumArt || item.album_art || ""),
                   rank: Number(item.rank),
                   originalYear,
                   releaseYear,
                   genreList,
                 };
               });
-              setRows(normalized);
-              setError(null);
+
+              if (!cancelled) {
+                setRows(normalized);
+                setError(null);
+                if (!silent) setLoading(false);
+                setLastUpdated(new Date());
+              }
             } catch (err) {
               console.error(err);
-              setError(err.message || "Unknown error");
-            } finally {
-              setLoading(false);
+              if (!cancelled) {
+                setError(err.message || "Unknown error");
+                if (!silent) setLoading(false);
+              }
             }
           }
 
-          load();
+          loadData({ silent: false });
+
+          const id = setInterval(() => {
+            loadData({ silent: true });
+          }, 30000);
+
+          return () => {
+            cancelled = true;
+            clearInterval(id);
+          };
         }, []);
 
+        // Derived options
         const decadeOptions = useMemo(() => {
           const set = new Set();
           rows.forEach((r) => {
@@ -440,6 +551,7 @@
           return Array.from(set).sort((a, b) => a.localeCompare(b));
         }, [rows]);
 
+        // Apply filters & sort
         const filteredRows = useMemo(() => {
           let result = [...rows];
 
@@ -503,6 +615,34 @@
 
           return result;
         }, [rows, search, decadeFilter, genreFilter, sortField, sortDirection]);
+
+        // Keep URL in sync with filters/sort and compute view URL
+        useEffect(() => {
+          if (typeof window === "undefined") return;
+          const url = new URL(window.location.href);
+          const params = url.searchParams;
+
+          if (search) params.set("q", search);
+          else params.delete("q");
+
+          if (decadeFilter !== "all") params.set("decade", decadeFilter);
+          else params.delete("decade");
+
+          if (genreFilter !== "all") params.set("genre", genreFilter);
+          else params.delete("genre");
+
+          if (sortField !== "rank") params.set("sort", sortField);
+          else params.delete("sort");
+
+          if (sortDirection !== "asc") params.set("dir", sortDirection);
+          else params.delete("dir");
+
+          url.search = params.toString();
+
+          const newUrl = url.toString();
+          window.history.replaceState({}, "", newUrl);
+          setViewUrl(newUrl);
+        }, [search, decadeFilter, genreFilter, sortField, sortDirection]);
 
         const handleSort = (field) => {
           if (sortField === field) {
@@ -573,13 +713,31 @@
           URL.revokeObjectURL(url);
         };
 
+        const handleCopyLink = () => {
+          if (!viewUrl) return;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard
+              .writeText(viewUrl)
+              .then(() => {
+                alert("View link copied to clipboard.");
+              })
+              .catch(() => {
+                window.prompt("Copy this link:", viewUrl);
+              });
+          } else {
+            window.prompt("Copy this link:", viewUrl);
+          }
+        };
+
+        const iframeCode = `<iframe src="${viewUrl}" style="border:0;width:100%;height:600px;"></iframe>`;
+
         return (
           <div className="app">
             <header>
               <h1>XPN 2025 Countdown – Cover Songs Explorer</h1>
               <p>
                 Live data from <span className="chip">cd2025.json</span> – search,
-                filter, explore, and export.
+                filter, explore, export, and embed.
               </p>
             </header>
 
@@ -627,10 +785,6 @@
                 </select>
               </div>
 
-              <button type="button" className="btn" onClick={handleExport}>
-                Export CSV
-              </button>
-
               <div className="summary">
                 {loading && <span className="muted">Loading songs…</span>}
                 {!loading && !error && (
@@ -639,7 +793,30 @@
                     {rows.length.toLocaleString()} songs
                   </span>
                 )}
+                {lastUpdated && (
+                  <div className="last-updated">
+                    Updated{" "}
+                    {lastUpdated.toLocaleTimeString(undefined, {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
+                    })}
+                  </div>
+                )}
               </div>
+            </section>
+
+            <section className="actions">
+              <button type="button" className="btn" onClick={handleExport}>
+                Export CSV (respects filters)
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={handleCopyLink}
+              >
+                Share
+              </button>
             </section>
 
             <section className="table-wrapper">
@@ -824,6 +1001,21 @@
                   </table>
                 </div>
               )}
+            </section>
+
+              
+            <section className="embed-section">
+              <div className="embed-label">Embed this filtered view</div>
+              <textarea
+                className="embed-code"
+                readOnly
+                value={iframeCode}
+                onFocus={(e) => e.target.select()}
+              ></textarea>
+              <div className="last-updated">
+                Paste this into any HTML page to embed the current view in an
+                &lt;iframe&gt;.
+              </div>
             </section>
           </div>
         );
